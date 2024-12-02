@@ -32,7 +32,7 @@ use crate::xlsx;
 #[cfg(feature = "xml")]
 use crate::xml;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct PageDimensions {
     pub page_width: f32,
@@ -43,7 +43,7 @@ pub struct PageDimensions {
     pub page_margin_right: f32,
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, EnumString)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum PageFormat {
     /// A4 format (210 x 297 mm).
@@ -116,7 +116,8 @@ pub enum PageOrientation {
 /// PageHeader, Detail, PageFooter are the most common bands and is used to display the header, main content, and footer of documents of any type(XML, CSV, JSON...).
 /// 
 /// The logic to handle custom bands is up to the user/file format
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, EnumString, Display)]
+#[strum(ascii_case_insensitive,serialize_all = "snake_case" )]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum Band {
     /// This band happens only once at the beginning of the document and is not repeated.
@@ -161,6 +162,19 @@ impl Band {
             Band::PageFooter(e) => e,
             Band::Summary(e) => e,
             Band::Custom(_, e) => e,
+        }
+    }
+
+    pub fn set_elements(&mut self, element: Element) {
+        match self {
+            Band::Title(e) => e.push(element),
+            Band::PageHeader(e) => e.push(element),
+            Band::ColumnHeader(e) => e.push(element),
+            Band::Detail(e) => e.push(element),
+            Band::ColumnFooter(e) => e.push(element),
+            Band::PageFooter(e) => e.push(element),
+            Band::Summary(e) => e.push(element),
+            Band::Custom(_, e) => e.push(element),
         }
     }
 }
@@ -468,8 +482,18 @@ impl Document {
         }
     }
 
+    pub fn add_title(&mut self, element: Element) {
+        for band in &mut self.bands {
+            if let Band::Title(e) = band { e.push(element.clone()) }
+        }
+    }
+
     pub fn remove_band(&mut self, band: Band) {
         self.bands.retain(|b| b != &band);
+    }
+
+    pub fn add_band(&mut self, band: Band) {
+        self.bands.push(band);
     }
 
     pub fn remove_all_bands(&mut self) {
@@ -530,27 +554,221 @@ pub enum Element {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Default for Element {
+    fn default() -> Self {
+        Element::Text {
+            text: "".to_string(),
+            size: 12,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, EnumString)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[strum(serialize_all = "snake_case")]
+pub enum Element1 {
+    Text(Text),
+    Header(Header),
+    Paragraph(Paragraph),
+    Image(Image),
+    #[strum(serialize = "link")]
+    Hyperlink(Hyperlink),
+    List(List),
+    ListItem(ListItem),
+    Table(Table),
+    TableHeader(TableHeader),
+    TableRow(TableRow),
+    TableCell(TableCell),
+}
+
+impl Element1 {
+
+    pub fn new_text(text: String, size: Option<u8>) -> Self {
+        Element1::Text(Text::new(text, size))
+    }
+
+    pub fn new_header(level: u8, text: String) -> Self {
+        Element1::Header(Header::new(level, text))
+    }
+
+    pub fn new_paragraph(elements: Vec<Element1>) -> Self {
+        Element1::Paragraph(Paragraph::new(elements))
+    }
+
+    pub fn new_image(image_data: ImageData) -> Self {
+        Element1::Image(Image::new(image_data))
+    }
+
+    pub fn new_hyperlink(title: String, url: String, alt: String, size: u8) -> Self {
+        Element1::Hyperlink(Hyperlink::new(title, url, alt, size))
+    }
+
+    pub fn new_list(elements: Vec<ListItem>, numbered: bool) -> Self {
+        Element1::List(List::new(elements, numbered))
+    }
+
+    pub fn new_list_item(element: Element) -> Self {
+        Element1::ListItem(ListItem::new(element))
+    }
+
+    pub fn new_table(headers: Vec<TableHeader>, rows: Vec<TableRow>) -> Self {
+        Element1::Table(Table::new(headers, rows))
+    }
+
+    pub fn new_table_header(element: Element, width: f32) -> Self {
+        Element1::TableHeader(TableHeader::new(element, width))
+    }
+
+    pub fn new_table_row(cells: Vec<TableCell>) -> Self {
+        Element1::TableRow(TableRow { cells })
+    }
+
+    pub fn new_table_cell(element: Element) -> Self {
+        Element1::TableCell(TableCell::new(element))
+    }
+
+    pub fn as_text(&self) -> Option<&Text> {
+        match self {
+            Element1::Text(t) => Some(t),
+            _ => None,
+        }
+    }
+
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Text {
+    pub text: String,
+    pub size: Option<u8>,
+}
+
+impl Text {
+    pub fn new(text: String, size: Option<u8>) -> Self {
+        Self { text, size }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Header {
+    pub level: u8,
+    pub text: String,
+}
+
+impl Header {
+    fn new(level: u8, text: String) -> Self {
+        Self { level, text }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Paragraph {
+    pub elements: Vec<Element1>,
+}
+
+impl Paragraph {
+    pub fn new(elements: Vec<Element1>) -> Self {
+        Self { elements }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Table {
+    pub headers: Vec<TableHeader>,
+    pub rows: Vec<TableRow>,
+}
+
+impl Table {
+    pub fn new(headers: Vec<TableHeader>, rows: Vec<TableRow>) -> Self {
+        Self { headers, rows }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct List {
+    pub elements: Vec<ListItem>,
+    pub numbered: bool,
+}
+
+impl List {
+    pub fn new(elements: Vec<ListItem>, numbered: bool) -> Self {
+        Self { elements, numbered }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Hyperlink {
+    pub title: String,
+    pub url: String,
+    pub alt: String,
+    pub size: u8,
+}
+
+impl Hyperlink {
+    pub fn new(title: String, url: String, alt: String, size: u8) -> Self {
+        Self { title, url, alt, size }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct ListItem {
     pub element: Element,
 }
-#[derive(Debug, Clone, PartialEq)]
+
+impl ListItem {
+    pub fn new(element: Element) -> Self {
+        Self { element }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TableHeader {
     pub element: Element,
     pub width: f32,
 }
-#[derive(Debug, Clone, PartialEq)]
+
+impl TableHeader {
+    pub fn new(element: Element, width: f32) -> Self {
+        Self { element, width }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TableRow {
     pub cells: Vec<TableCell>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TableCell {
     pub element: Element,
+}
+
+impl TableCell {
+    pub fn new(element: Element) -> Self {
+        Self { element }
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct Image {
+    pub image_data: ImageData
+}
+
+impl Image {
+    pub fn new(image_data: ImageData) -> Self {
+        Self { image_data }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

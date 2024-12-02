@@ -759,15 +759,15 @@ blabla2 bla bla blabla bla bla blabla bla bla blabla bla bla bla"#;
             "#;
 
         let elements = vec![
-            Header {
+            Element::Header {
                 level: 1,
                 text: "First header".to_string(),
             },
-            Header {
+            Element::Header {
                 level: 2,
                 text: "Second Header".to_string(),
             },
-            Header {
+            Element::Header {
                 level: 3,
                 text: "Third Header".to_string(),
             },
@@ -787,17 +787,17 @@ blabla2 bla bla blabla bla bla blabla bla bla blabla bla bla bla"#;
 | Header      | Title       |
 | Paragraph   | Text        |
           "#;
-        let elements = vec![Table {
+        let elements = vec![Element::Table {
             headers: vec![
                 TableHeader {
-                    element: Text {
+                    element: Element::Text {
                         text: "Syntax".to_string(),
                         size: 14,
                     },
                     width: 30.0,
                 },
                 TableHeader {
-                    element: Text {
+                    element: Element::Text {
                         text: "Description".to_string(),
                         size: 14,
                     },
@@ -808,13 +808,13 @@ blabla2 bla bla blabla bla bla blabla bla bla blabla bla bla bla"#;
                 TableRow {
                     cells: vec![
                         TableCell {
-                            element: Text {
+                            element: Element::Text {
                                 text: "Header".to_string(),
                                 size: 14,
                             },
                         },
                         TableCell {
-                            element: Text {
+                            element: Element::Text {
                                 text: "Title".to_string(),
                                 size: 14,
                             },
@@ -824,13 +824,13 @@ blabla2 bla bla blabla bla bla blabla bla bla blabla bla bla bla"#;
                 TableRow {
                     cells: vec![
                         TableCell {
-                            element: Text {
+                            element: Element::Text {
                                 text: "Paragraph".to_string(),
                                 size: 14,
                             },
                         },
                         TableCell {
-                            element: Text {
+                            element: Element::Text {
                                 text: "Text".to_string(),
                                 size: 14,
                             },
